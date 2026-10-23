@@ -4,7 +4,10 @@ import { ERC20InvalidTransferEvent } from '~contracts/generated.js'
 import { usdcContractConfig, wagmiContractConfig } from '~test/abis.js'
 import { anvilMainnet } from '~test/anvil.js'
 import { accounts, address } from '~test/constants.js'
-import { deployErc20InvalidTransferEvent } from '~test/utils.js'
+import {
+  createFilterlessRpcServer,
+  deployErc20InvalidTransferEvent,
+} from '~test/utils.js'
 import type { Client } from '../../index.js'
 
 import {
@@ -16,6 +19,7 @@ import {
   webSocket,
 } from '../../index.js'
 import { getAddress } from '../../utils/address/getAddress.js'
+import { withResolvers } from '../../utils/promise/withResolvers.js'
 import { wait } from '../../utils/wait.js'
 import { impersonateAccount } from '../test/impersonateAccount.js'
 import { mine } from '../test/mine.js'
@@ -582,6 +586,97 @@ describe('poll', () => {
   })
 
   describe('`getLogs` fallback', () => {
+    test('behavior: block number goes down', async () => {
+      let lag = 0n
+      const server = await createFilterlessRpcServer(anvilMainnet.rpcUrl.http, {
+        blockNumber: (blockNumber) => blockNumber - lag,
+      })
+      const client_ = createClient({
+        cacheTime: 0,
+        pollingInterval: 100,
+        transport: http(server.url),
+      })
+
+      const logs: WatchEventOnLogsParameter<typeof event.transfer>[] = []
+      const errors: Error[] = []
+      const delivered = withResolvers<void>()
+      const unwatch = watchEvent(client_, {
+        address: usdcContractConfig.address,
+        event: event.transfer,
+        onError: (error) => errors.push(error),
+        onLogs: (logs_) => {
+          logs.push(logs_)
+          delivered.resolve()
+        },
+      })
+      await server.blockNumberReads(1)
+      const hash = await writeContract(client, {
+        ...usdcContractConfig,
+        functionName: 'transfer',
+        args: [accounts[0].address, 1n],
+        account: address.vitalik,
+      })
+      await mine(client, { blocks: 1 })
+      await delivered.promise
+      // One poll gets a lower block number, as if from a node that is behind.
+      lag = 1n
+      await server.blockNumberReads(1)
+      lag = 0n
+      await server.blockNumberReads(2)
+      unwatch()
+      await server.close()
+
+      expect(logs.flat().map((log) => log.transactionHash)).toEqual([hash])
+      expect(errors).toMatchInlineSnapshot(`[]`)
+    })
+
+    test('behavior: fromBlock in the future', async () => {
+      const server = await createFilterlessRpcServer(anvilMainnet.rpcUrl.http)
+      const client_ = createClient({
+        cacheTime: 0,
+        pollingInterval: 100,
+        transport: http(server.url),
+      })
+      const blockNumber = await getBlockNumber.getBlockNumber(client)
+
+      const logs: WatchEventOnLogsParameter<typeof event.transfer>[] = []
+      const errors: Error[] = []
+      const delivered = withResolvers<void>()
+      const unwatch = watchEvent(client_, {
+        address: usdcContractConfig.address,
+        event: event.transfer,
+        fromBlock: blockNumber + 2n,
+        onError: (error) => errors.push(error),
+        onLogs: (logs_) => {
+          logs.push(logs_)
+          delivered.resolve()
+        },
+      })
+      await server.blockNumberReads(1)
+      // One transfer in the block before `fromBlock`, one in `fromBlock`.
+      await writeContract(client, {
+        ...usdcContractConfig,
+        functionName: 'transfer',
+        args: [accounts[0].address, 1n],
+        account: address.vitalik,
+      })
+      await mine(client, { blocks: 1 })
+      const hash = await writeContract(client, {
+        ...usdcContractConfig,
+        functionName: 'transfer',
+        args: [accounts[0].address, 1n],
+        account: address.vitalik,
+      })
+      await mine(client, { blocks: 1 })
+      await delivered.promise
+      await server.blockNumberReads(2)
+      unwatch()
+      await server.close()
+
+      expect(logs.flat().map((log) => log.transactionHash)).toEqual([hash])
+      expect(errors).toMatchInlineSnapshot(`[]`)
+    })
+
     test('falls back to `getLogs` if `createEventFilter` throws', async () => {
       // Something weird going on where the `getFilterChanges` spy is taking
       // results of the previous test. This `wait` fixes it. ¯\_(ツ)_/¯

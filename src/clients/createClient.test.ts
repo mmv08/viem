@@ -1,7 +1,7 @@
 import { assertType, describe, expect, test, vi } from 'vitest'
 
 import { anvilMainnet } from '~test/anvil.js'
-import { createHttpServer } from '~test/utils.js'
+import { createHttpServer, readBody } from '~test/utils.js'
 import { base, localhost, mainnet } from '../chains/index.js'
 import type { EIP1193RequestFn, EIP1474Methods } from '../types/eip1193.js'
 import { getAction } from '../utils/getAction.js'
@@ -1046,10 +1046,4 @@ async function createHeldServer() {
       await server.close()
     },
   }
-}
-
-async function readBody(req: AsyncIterable<Uint8Array>) {
-  const chunks: Uint8Array[] = []
-  for await (const chunk of req) chunks.push(chunk)
-  return Buffer.concat(chunks).toString()
 }
