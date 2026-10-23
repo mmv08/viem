@@ -32,12 +32,15 @@ import {
   type Abi,
   type Account,
   type Chain,
+  type Hex,
   publicActions,
   type TestClient,
   type Transport,
 } from '../../src/index.js'
 // biome-ignore lint/correctness/noUnusedImports: required for inference.
 import type * as _ from '../../src/node_modules/abitype/dist/types/abi.js'
+import { hexToBigInt } from '../../src/utils/encoding/fromHex.js'
+import { numberToHex } from '../../src/utils/encoding/toHex.js'
 import { namehash } from '../../src/utils/ens/namehash.js'
 import {
   baycContractConfig,
@@ -75,6 +78,55 @@ export function createHttpServer(
       resolve({ close: closeAsync, url: `http://localhost:${port}` })
     })
   })
+}
+
+/**
+ * Starts a JSON-RPC server that passes requests on to `url` but rejects
+ * `eth_newFilter`, like nodes without filter support. `blockNumber` can change
+ * each `eth_blockNumber` result, and `blockNumberReads(count)` resolves after
+ * `count` more `eth_blockNumber` requests.
+ */
+export async function createFilterlessRpcServer(
+  url: string,
+  options: {
+    blockNumber?: ((blockNumber: bigint) => bigint) | undefined
+  } = {},
+) {
+  const { blockNumber = (value) => value } = options
+  type Waiter = { count: number; resolve: () => void }
+  const waiters: Waiter[] = []
+  const server = await createHttpServer(async (req, res) => {
+    const chunks: Uint8Array[] = []
+    for await (const chunk of req) chunks.push(chunk)
+    const body = Buffer.concat(chunks).toString()
+    const { id, method } = JSON.parse(body)
+    if (method === 'eth_newFilter') {
+      res.end(
+        JSON.stringify({
+          error: { code: -32601, message: 'Method not found' },
+          id,
+          jsonrpc: '2.0',
+        }),
+      )
+      return
+    }
+    const response = await fetch(url, {
+      body,
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    })
+    const json = (await response.json()) as { result: Hex }
+    if (method === 'eth_blockNumber') {
+      json.result = numberToHex(blockNumber(hexToBigInt(json.result)))
+      for (const waiter of waiters) if (--waiter.count === 0) waiter.resolve()
+    }
+    res.end(JSON.stringify(json))
+  })
+  return {
+    ...server,
+    blockNumberReads: (count: number) =>
+      new Promise<void>((resolve) => waiters.push({ count, resolve })),
+  }
 }
 
 export async function deploy<const abi extends Abi | readonly unknown[]>(

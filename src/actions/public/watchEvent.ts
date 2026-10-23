@@ -255,6 +255,12 @@ export function watchEvent<
                 'getBlockNumber',
               )({})
 
+              // Never go back to an earlier block: a node that is behind can
+              // return a lower block number than last time, and `fromBlock`
+              // can still be in the future.
+              if (previousBlockNumber && blockNumber < previousBlockNumber)
+                return
+
               // If the block number has changed, we will need to fetch the logs.
               // If the block number doesn't exist, we are yet to reach the first poll interval,
               // so do not emit any logs.
