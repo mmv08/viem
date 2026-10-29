@@ -721,6 +721,26 @@ describe('args: confirmations', () => {
   })
 })
 
+describe('args: pollingInterval', () => {
+  test('defaults to the block time when it is shorter', async () => {
+    const { hash, rpcUrl, testClient } = await sendPendingTransaction()
+    const client = createPublicClient({
+      chain: { ...mainnet, blockTime: 100 },
+      pollingInterval: 2_000,
+      transport: http(rpcUrl),
+    })
+
+    const receipt = waitForTransactionReceipt(client, {
+      hash,
+      timeout: 1_500,
+    })
+    await wait(300)
+    await mine(testClient, { blocks: 1 })
+
+    expect((await receipt).transactionHash).toBe(hash)
+  })
+})
+
 describe('args: replacement', () => {
   const transaction = {
     from: sourceAccount.address,
@@ -917,8 +937,9 @@ describe('args: replacement', () => {
     const receipt = await getTransactionReceipt(testClient, { hash })
     await setIntervalMining(testClient, { interval: 1 })
 
-    // Route transaction reads, and the first receipt read, to a lagging node.
-    let missingReceipts = 1
+    // Route transaction reads, and the first two receipt reads, to a lagging
+    // node.
+    let missingReceipts = 2
     const client = createPublicClient({
       chain: mainnet,
       pollingInterval: 100,
@@ -1128,6 +1149,64 @@ describe('errors', () => {
         })(),
       ]),
     ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: foo]')
+  })
+})
+
+describe('missing or failed lookups', () => {
+  test.each([
+    { name: 'nothing', reply: { result: null } },
+    {
+      name: 'an error',
+      reply: { error: { code: -32000, message: 'header not found' } },
+    },
+  ])(
+    'waits for the receipt when the transaction lookup returns $name',
+    async ({ reply }) => {
+      const { hash, rpcUrl, testClient } = await sendPendingTransaction()
+      const proxyUrl = await createRpcProxy(rpcUrl, ({ method }) => {
+        if (method === 'eth_getTransactionByHash') return reply
+        return undefined
+      })
+      const client = createPublicClient({
+        chain: mainnet,
+        pollingInterval: 100,
+        transport: http(proxyUrl),
+      })
+
+      const receipt = waitForTransactionReceipt(client, {
+        hash,
+        timeout: 5_000,
+      })
+      await wait(500)
+      await mine(testClient, { blocks: 1 })
+
+      expect((await receipt).transactionHash).toBe(hash)
+    },
+  )
+
+  test('retries a block the node has not seen yet', async () => {
+    const { hash, rpcUrl, testClient } = await sendPendingTransaction()
+
+    // The first block read fails, as on a node behind the latest block.
+    let missingBlocks = 1
+    const proxyUrl = await createRpcProxy(rpcUrl, ({ method }) => {
+      if (method === 'eth_getBlockByNumber' && missingBlocks-- > 0)
+        return { result: null }
+      return undefined
+    })
+    const client = createPublicClient({
+      pollingInterval: 100,
+      transport: http(proxyUrl),
+    })
+
+    const receipt = waitForTransactionReceipt(client, {
+      hash,
+      timeout: 5_000,
+    })
+    await wait(500)
+    await mine(testClient, { blocks: 1 })
+
+    expect((await receipt).transactionHash).toBe(hash)
   })
 })
 
@@ -1538,4 +1617,25 @@ async function replaceTransaction(options: { blocks: number }) {
   await mine(testClient, { blocks: options.blocks })
 
   return { cancelHash, hash, pool, rpcUrl: node.url, testClient }
+}
+
+async function sendPendingTransaction() {
+  const pool = Pool.define({
+    instance: Instance.anvil({ chainId: mainnet.id, noMining: true }),
+  })
+  onTestFinished(() => pool.destroyAll())
+  const node = await pool.start(1)
+  const testClient = createTestClient({
+    chain: mainnet,
+    mode: 'anvil',
+    transport: http(node.url),
+  })
+
+  const hash = await sendTransaction(testClient, {
+    account: sourceAccount.address,
+    to: targetAccount.address,
+    value: parseEther('1'),
+  })
+
+  return { hash, rpcUrl: node.url, testClient }
 }
