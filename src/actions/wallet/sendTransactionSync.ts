@@ -101,7 +101,7 @@ export type SendTransactionSyncParameters<
     dataSuffix?: Hex | undefined
     /** Polling interval (ms) to poll for the transaction receipt. @default client.pollingInterval */
     pollingInterval?: number | undefined
-    /** Whether to throw an error if the transaction was detected as reverted. @default true */
+    /** Whether to throw an error if the transaction was detected as reverted. @default false */
     throwOnReceiptRevert?: boolean | undefined
     /** Timeout (ms) to wait for a response. @default Math.max(chain.blockTime * 3, 5_000) */
     timeout?: number | undefined

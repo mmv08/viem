@@ -11,7 +11,7 @@ import type { FormattedTransactionReceipt } from '../../utils/index.js'
 export type SendRawTransactionSyncParameters = {
   /** The signed serialized transaction. */
   serializedTransaction: TransactionSerializedGeneric
-  /** Whether to throw an error if the transaction was detected as reverted. @default true */
+  /** Whether to throw an error if the transaction was detected as reverted. @default false */
   throwOnReceiptRevert?: boolean | undefined
   /** The timeout for the transaction. */
   timeout?: number | undefined

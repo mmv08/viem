@@ -66,7 +66,6 @@ export type WriteParameters<
   | 'maxFeePerGas'
   | 'maxPriorityFeePerGas'
   | 'nonce'
-  | 'throwOnReceiptRevert'
 > &
   UnionPick<
     TransactionRequestTempo,
@@ -77,7 +76,10 @@ export type WriteParameters<
     | 'owner'
     | 'validAfter'
     | 'validBefore'
-  >
+  > & {
+    /** Whether to throw an error if the transaction was detected as reverted. @default true */
+    throwOnReceiptRevert?: boolean | undefined
+  }
 
 export type WriteSyncParameters<
   chain extends Chain | undefined = Chain | undefined,

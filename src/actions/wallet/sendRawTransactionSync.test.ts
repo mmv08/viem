@@ -58,3 +58,29 @@ test('args: throwOnReceiptRevert', async () => {
     ]),
   ).rejects.toThrow('The receipt marked the transaction as "reverted"')
 })
+
+test('args: throwOnReceiptRevert (default)', async () => {
+  const { contractAddress } = await deployErrorExample()
+
+  const request = await prepareTransactionRequest(client, {
+    account: privateKeyToAccount(accounts[0].privateKey),
+    data: encodeFunctionData({
+      abi: ErrorsExample.abi,
+      functionName: 'revertWrite',
+    }),
+    gas: 100_000n,
+    to: contractAddress!,
+  })
+  const serializedTransaction = await signTransaction(client, request)
+  const [receipt] = await Promise.all([
+    sendRawTransactionSync(client, {
+      serializedTransaction,
+    }),
+    (async () => {
+      await wait(100)
+      await mine(client, { blocks: 1 })
+    })(),
+  ])
+
+  expect(receipt.status).toMatchInlineSnapshot(`"reverted"`)
+})

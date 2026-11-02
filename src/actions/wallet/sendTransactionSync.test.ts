@@ -350,6 +350,23 @@ test('args: throwOnReceiptRevert', async () => {
   ).rejects.toThrow('The receipt marked the transaction as "reverted".')
 })
 
+test('args: throwOnReceiptRevert (default)', async () => {
+  await setup()
+
+  const { contractAddress } = await deployErrorExample()
+
+  const receipt = await sendTransactionSync(client, {
+    account: sourceAccount.address,
+    data: encodeFunctionData({
+      abi: ErrorsExample.abi,
+      functionName: 'revertWrite',
+    }),
+    to: contractAddress!,
+  })
+
+  expect(receipt.status).toMatchInlineSnapshot(`"reverted"`)
+})
+
 describe('args: gasPrice', () => {
   test('sends transaction', async () => {
     await setup()

@@ -460,6 +460,7 @@ await walletClient.writeContractSync({
 ### throwOnReceiptRevert (optional)
 
 - **Type:** `boolean`
+- **Default:** `false`
 
 Whether to throw an error if the transaction was detected as reverted.
 

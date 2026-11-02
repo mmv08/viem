@@ -336,8 +336,10 @@ export type WriteParameters<
   | 'maxFeePerGas'
   | 'maxPriorityFeePerGas'
   | 'nonce'
-  | 'throwOnReceiptRevert'
->
+> & {
+  /** Whether to throw an error if the transaction was detected as reverted. @default true */
+  throwOnReceiptRevert?: boolean | undefined
+}
 
 export function defineCall<
   const abi extends Abi,
