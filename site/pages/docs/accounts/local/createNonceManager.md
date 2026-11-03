@@ -87,9 +87,13 @@ export const client = createWalletClient({
 
 The Nonce Manager.
 
-When a send fails after the Nonce Manager consumed a nonce, [`sendTransaction`](/docs/actions/wallet/sendTransaction) and [`sendTransactionSync`](/docs/actions/wallet/sendTransactionSync) call `reset` with that nonce as `nonce`. They omit `nonce` when `consume` threw. A custom Nonce Manager that tracks a nonce per send can use it to release that nonce only; `createNonceManager` ignores it.
+When a send fails after the Nonce Manager consumed a nonce, [`sendTransaction`](/docs/actions/wallet/sendTransaction) and [`sendTransactionSync`](/docs/actions/wallet/sendTransactionSync) call `reset` with that nonce as `nonce`, so a custom Nonce Manager can release that nonce only. They omit `nonce` when `consume` threw.
 
-A failed send does not prove the nonce is unused. The node may have accepted the transaction before the request failed, for example on a timeout. Check the account's pending nonce before reusing a released nonce.
+`createNonceManager` gives a released nonce to the next send and keeps the others it gave out. Those may still be in use: a parallel send may not have reached the node yet, and some nodes do not count transactions until they are in a block.
+
+It cannot tell a dropped transaction from a waiting one. After a drop, later transactions never land: they wait for the missing nonce, or the node rejects them with errors such as `nonce too high` or `replacement transaction underpriced`. Call `reset` without `nonce` to read the next nonce from its source again.
+
+A failed send does not prove the nonce is unused. The node may have accepted the transaction before the request failed, for example on a timeout. Check the account's pending nonce before reusing a released nonce. `createNonceManager` skips a released nonce once its source's nonce is past it.
 
 ## Parameters
 

@@ -1,19 +1,26 @@
+import type { Address } from 'abitype'
 import { beforeAll, expect, test, vi } from 'vitest'
 import { anvilMainnet } from '~test/anvil.js'
+import { createRpcProxy } from '~test/utils.js'
 import { generatePrivateKey } from '../accounts/generatePrivateKey.js'
 import { privateKeyToAccount } from '../accounts/privateKeyToAccount.js'
 import {
   dropTransaction,
   getTransaction,
+  getTransactionCount,
+  mine,
   sendTransaction,
   sendTransactionSync,
   setBalance,
+  setCode,
 } from '../actions/index.js'
 import { mainnet } from '../chains/index.js'
 import { createWalletClient } from '../clients/createWalletClient.js'
 import { custom } from '../clients/transports/custom.js'
+import { http } from '../clients/transports/http.js'
 import type { Hex } from '../types/misc.js'
 import { defineChain } from './chain/defineChain.js'
+import { numberToHex } from './encoding/toHex.js'
 import {
   createNonceManager,
   jsonRpc,
@@ -34,11 +41,18 @@ const mainnetArgs = {
   client: mainnetClient,
 } as const
 
+// A contract that always reverts.
+const reverter = privateKeyToAccount(generatePrivateKey()).address
+
 beforeAll(async () => {
   await anvilMainnet.restart()
   await setBalance(mainnetClient, {
     address: account.address,
     value: parseEther('100'),
+  })
+  await setCode(mainnetClient, {
+    address: reverter,
+    bytecode: '0x60006000fd',
   })
 })
 
@@ -231,6 +245,83 @@ test('consumed nonce 0 is not re-served by a stale source', async () => {
   expect(await nonceManager.consume(mainnetArgs)).toBe(0)
   expect(await nonceManager.get(mainnetArgs)).toBe(1)
   expect(await nonceManager.consume(mainnetArgs)).toBe(1)
+})
+
+test('reset with a nonce releases only that nonce', async () => {
+  // The source leaves out nonces that still wait for a block.
+  const nonceManager = createNonceManager({
+    source: {
+      get: () => 0,
+      set: () => {},
+    },
+  })
+  for (let i = 0; i < 4; i++) await nonceManager.consume(mainnetArgs)
+  nonceManager.reset({ ...mainnetArgs, nonce: 2 })
+  nonceManager.reset({ ...mainnetArgs, nonce: 1 })
+
+  // Consumes take released nonces first, lowest first, and only once.
+  const nonces = await Promise.all([
+    nonceManager.get(mainnetArgs),
+    nonceManager.consume(mainnetArgs),
+    nonceManager.consume(mainnetArgs),
+    nonceManager.consume(mainnetArgs),
+    nonceManager.get(mainnetArgs),
+  ])
+  nonces.push(await nonceManager.consume(mainnetArgs))
+
+  expect(nonces).toMatchInlineSnapshot(`
+    [
+      1,
+      1,
+      2,
+      4,
+      5,
+      5,
+    ]
+  `)
+})
+
+test('reset with a nonce the source has passed', async () => {
+  let next = 0
+  const nonceManager = createNonceManager({
+    source: {
+      get: () => next,
+      set: () => {},
+    },
+  })
+  for (let i = 0; i < 3; i++) await nonceManager.consume(mainnetArgs)
+  nonceManager.reset({ ...mainnetArgs, nonce: 1 })
+
+  // The failed send reached the node after all.
+  next = 2
+
+  expect(await nonceManager.consume(mainnetArgs)).toBe(3)
+})
+
+test('reset ignores a nonce it did not hand out or already released', async () => {
+  const nonceManager = createNonceManager({
+    source: {
+      get: () => 0,
+      set: () => {},
+    },
+  })
+  await nonceManager.consume(mainnetArgs)
+  await nonceManager.consume(mainnetArgs)
+
+  nonceManager.reset({ ...mainnetArgs, nonce: 5 })
+  nonceManager.reset({ ...mainnetArgs, nonce: 0 })
+  nonceManager.reset({ ...mainnetArgs, nonce: 0 })
+  const nonces = [
+    await nonceManager.consume(mainnetArgs),
+    await nonceManager.consume(mainnetArgs),
+  ]
+
+  expect(nonces).toMatchInlineSnapshot(`
+    [
+      0,
+      2,
+    ]
+  `)
 })
 
 test('failed sendTransaction resets consumed nonce', async () => {
@@ -638,4 +729,165 @@ test('dropped tx', async () => {
     value: 0n,
   })
   expect(await nonceManager.get(args)).toBe(10)
+})
+
+test('failed send while a parallel send prepares', async () => {
+  const nonceManager = createNonceManager({ source: jsonRpc() })
+  const account = privateKeyToAccount(generatePrivateKey(), { nonceManager })
+  await setBalance(mainnetClient, {
+    address: account.address,
+    value: parseEther('1'),
+  })
+  const client = anvilMainnet.getClient({ account })
+  // A parallel send that has its nonce but has not reached the node yet.
+  const nonce = await nonceManager.consume({
+    address: account.address,
+    chainId: client.chain.id,
+    client,
+  })
+
+  await expect(sendTransaction(client, { to: reverter })).rejects.toThrow()
+  // Takes the nonce that the failed send released, not the parallel send's.
+  const hash_2 = await sendTransaction(client, {
+    to: account.address,
+    value: 1n,
+  })
+  const hash_1 = await sendTransaction(client, {
+    nonce,
+    to: account.address,
+    value: 0n,
+  })
+  await mine(mainnetClient, { blocks: 1 })
+
+  const nonces = await Promise.all(
+    [hash_1, hash_2].map(
+      async (hash) => (await getTransaction(mainnetClient, { hash })).nonce,
+    ),
+  )
+  expect(nonces).toMatchInlineSnapshot(`
+    [
+      0,
+      1,
+    ]
+  `)
+})
+
+test('failed send on a node that leaves sent transactions out of the pending nonce', async () => {
+  // Such as Arbitrum or Monad: the `pending` nonce only counts transactions in
+  // blocks, and the test node mines only when asked.
+  const url = await createRpcProxy(
+    anvilMainnet.rpcUrl.http,
+    async ({ method, params }) => {
+      if (method !== 'eth_getTransactionCount') return undefined
+      const count = await getTransactionCount(mainnetClient, {
+        address: params[0] as Address,
+        blockTag: 'latest',
+      })
+      return { result: numberToHex(count) }
+    },
+  )
+  const account = privateKeyToAccount(generatePrivateKey(), {
+    nonceManager: createNonceManager({ source: jsonRpc() }),
+  })
+  await setBalance(mainnetClient, {
+    address: account.address,
+    value: parseEther('1'),
+  })
+  const client = createWalletClient({
+    account,
+    chain: mainnet,
+    transport: http(url),
+  })
+
+  const hash_1 = await sendTransaction(client, {
+    to: account.address,
+    value: 0n,
+  })
+  await expect(sendTransaction(client, { to: reverter })).rejects.toThrow()
+  const hash_2 = await sendTransaction(client, {
+    to: account.address,
+    value: 1n,
+  })
+  await mine(mainnetClient, { blocks: 1 })
+
+  const nonces = await Promise.all(
+    [hash_1, hash_2].map(
+      async (hash) => (await getTransaction(mainnetClient, { hash })).nonce,
+    ),
+  )
+  expect(nonces).toMatchInlineSnapshot(`
+    [
+      0,
+      1,
+    ]
+  `)
+})
+
+test('failed send in a burst on a node that rejects nonce gaps', async () => {
+  // Such as Arbitrum: the `pending` nonce only counts transactions in blocks,
+  // and the node rejects a nonce above the account's next one.
+  const account = privateKeyToAccount(generatePrivateKey(), {
+    nonceManager: createNonceManager({ source: jsonRpc() }),
+  })
+  await setBalance(mainnetClient, {
+    address: account.address,
+    value: parseEther('1'),
+  })
+  const url = await createRpcProxy(
+    anvilMainnet.rpcUrl.http,
+    async ({ method, params }) => {
+      if (method === 'eth_getTransactionCount') {
+        const count = await getTransactionCount(mainnetClient, {
+          address: params[0] as Address,
+          blockTag: 'latest',
+        })
+        return { result: numberToHex(count) }
+      }
+      if (method !== 'eth_sendRawTransaction') return undefined
+      const { nonce } = parseTransaction(params[0] as Hex)
+      const next = await getTransactionCount(mainnetClient, {
+        address: account.address,
+        blockTag: 'pending',
+      })
+      if (nonce! <= next) return undefined
+      return { error: { code: -32000, message: 'nonce too high' } }
+    },
+  )
+  const client = createWalletClient({
+    account,
+    chain: mainnet,
+    transport: http(url),
+  })
+
+  // The second send fails, so the node rejects the third as too high.
+  const [hash_1] = await Promise.all([
+    sendTransaction(client, { to: account.address, value: 0n }),
+    expect(sendTransaction(client, { to: reverter })).rejects.toThrow(),
+    expect(
+      sendTransaction(client, { to: account.address, value: 1n }),
+    ).rejects.toThrow('higher than the next one expected'),
+  ])
+  // Take the released nonces, not the first send's.
+  const hash_2 = await sendTransaction(client, {
+    to: account.address,
+    value: 2n,
+  })
+  const hash_3 = await sendTransaction(client, {
+    to: account.address,
+    value: 3n,
+  })
+  await mine(mainnetClient, { blocks: 1 })
+
+  const nonces = await Promise.all(
+    [hash_1, hash_2, hash_3].map(
+      async (hash) => (await getTransaction(mainnetClient, { hash })).nonce,
+    ),
+  )
+  expect(nonces).toMatchInlineSnapshot(`
+    [
+      0,
+      1,
+      2,
+    ]
+  `)
 })

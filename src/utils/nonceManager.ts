@@ -60,8 +60,13 @@ export function createNonceManager(
   const { source } = parameters
 
   const deltaMap = new Map()
-  const nonceMap = new LruMap<number>(8192)
-  const promiseMap = new Map<string, Promise<number>>()
+  // The highest nonce handed out, and the lower nonces of failed sends (in
+  // ascending order) to hand out again.
+  type Entry = { nonce: number; released: readonly number[] }
+  const nonceMap = new LruMap<Entry>(8192)
+  // The next new nonce, and the released nonces to hand out before it.
+  type Batch = { nonce: number; released: readonly number[] }
+  const promiseMap = new Map<string, Promise<Batch>>()
 
   const getKey = ({ address, chainId }: FunctionParameters) =>
     `${address}.${chainId}`
@@ -79,7 +84,10 @@ export function createNonceManager(
       const nonce = await promise
 
       await source.set({ address, chainId }, nonce)
-      nonceMap.set(key, nonce)
+      // A released nonce is lower than the highest one handed out.
+      const previous = nonceMap.get(key)
+      if (!previous || nonce > previous.nonce)
+        nonceMap.set(key, { nonce, released: previous?.released ?? [] })
 
       return nonce
     },
@@ -96,11 +104,21 @@ export function createNonceManager(
         promise = (async () => {
           try {
             const nonce = await source.get({ address, chainId, client })
-            const previousNonce = nonceMap.get(key)
-            if (previousNonce !== undefined && nonce <= previousNonce)
-              return previousNonce + 1
+            const previous = nonceMap.get(key)
+            if (previous && nonce <= previous.nonce) {
+              // Released nonces below the source's nonce were used after all.
+              const released = previous.released.filter((n) => n >= nonce)
+              // The consumes waiting on this read take the released nonces
+              // first, so a later read cannot hand them out again.
+              const count = deltaMap.get(key) ?? 0
+              nonceMap.set(key, {
+                ...previous,
+                released: released.slice(count),
+              })
+              return { nonce: previous.nonce + 1, released }
+            }
             nonceMap.delete(key)
-            return nonce
+            return { nonce, released: [] }
           } finally {
             resetCache(key)
           }
@@ -109,10 +127,27 @@ export function createNonceManager(
       }
 
       const delta = deltaMap.get(key) ?? 0
-      return delta + (await promise)
+      const { nonce, released } = await promise
+      return released[delta] ?? nonce + delta - released.length
     },
-    reset({ address, chainId }) {
+    reset({ address, chainId, nonce }) {
       const key = getKey({ address, chainId })
+
+      // Release only the failed send's nonce. The node's `pending` nonce can
+      // leave out the others handed out: a parallel send may not have reached
+      // it yet, and some nodes count a transaction only once it is in a block
+      // (e.g. Arbitrum, Monad).
+      if (typeof nonce === 'number') {
+        const previous = nonceMap.get(key)
+        if (!previous || nonce > previous.nonce) return
+        if (previous.released.includes(nonce)) return
+        nonceMap.set(key, {
+          ...previous,
+          released: [...previous.released, nonce].sort((a, b) => a - b),
+        })
+        return
+      }
+
       nonceMap.delete(key)
       resetCache(key)
     },
