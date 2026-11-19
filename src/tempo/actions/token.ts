@@ -1,6 +1,6 @@
 import type { Address } from 'abitype'
 import * as Hex from 'ox/Hex'
-import { TokenId, TokenRole } from 'ox/tempo'
+import { TokenRole } from 'ox/tempo'
 import type { Account } from '../../accounts/types.js'
 import { parseAccount } from '../../accounts/utils/parseAccount.js'
 import { estimateContractGas } from '../../actions/public/estimateContractGas.js'
@@ -69,6 +69,7 @@ import {
   resolveToken,
   resolveTokenWithDecimals,
 } from '../internal/utils.js'
+import * as TokenId from '../TokenId.js'
 import type { TransactionReceipt } from '../Transaction.js'
 
 /**

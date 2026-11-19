@@ -1267,8 +1267,8 @@ function fromBase(parameters: fromBase.Parameters): Account_base {
         address,
         chainId,
         nonce,
-        r: Hex.fromNumber(r, { size: 32 }),
-        s: Hex.fromNumber(s, { size: 32 }),
+        r,
+        s,
         yParity,
       }
     },

@@ -11,7 +11,6 @@ import {
   type KeyAuthorization,
   type TransactionReceipt as ox_TransactionReceipt,
   SignatureEnvelope,
-  type TempoAddress,
   TxEnvelopeTempo as TxTempo,
 } from 'ox/tempo'
 import type { Account } from '../accounts/types.js'
@@ -44,6 +43,8 @@ import {
 import { serializeTransaction as viem_serializeTransaction } from '../utils/transaction/serializeTransaction.js'
 import type { RootAccount } from './Account.js'
 import { parseApproval } from './accounts/Signature.js'
+import * as TempoAddress from './TempoAddress.js'
+import * as TokenId from './TokenId.js'
 
 export type Transaction<
   bigintType = bigint,
@@ -146,7 +147,11 @@ export type TransactionRequestTempo<
   ExactPartial<FeeValuesEIP1559<quantity>> & {
     accessList?: AccessList | undefined
     accountSimulation?: AccountSimulation.Spec | undefined
-    calls?: readonly TxTempo.Call<quantity, TempoAddress.Address>[] | undefined
+    calls?:
+      | readonly (Omit<TxTempo.Call<quantity>, 'to'> & {
+          to?: TempoAddress.Address | undefined
+        })[]
+      | undefined
     capabilities?: ExtractCapabilities<'fillTransaction', 'Request'> | undefined
     /** Fee-payer account, external relay URL, or sponsorship preference. */
     feePayer?: Account | boolean | string | undefined
@@ -185,7 +190,7 @@ export type TransactionSerializableTempo<
     keyAuthorizationSimulation?: AccountSimulation.Spec | undefined
     nonceKey?: quantity | undefined
     owner?: RootAccount | undefined
-    signature?: SignatureEnvelope.SignatureEnvelope<quantity, index> | undefined
+    signature?: SignatureEnvelope.SignatureEnvelope<index> | undefined
     validBefore?: index | undefined
     validAfter?: index | undefined
     type?: 'tempo' | undefined
@@ -297,8 +302,8 @@ export async function serialize(
     if (signature && 'type' in signature) {
       const { r, s, yParity } = signature?.signature!
       return viem_serializeTransaction(transaction as never, {
-        r: Hex.fromNumber(r, { size: 32 }),
-        s: Hex.fromNumber(s, { size: 32 }),
+        r,
+        s,
         yParity,
       })
     }
@@ -326,8 +331,8 @@ function deserializeTempo(
     nonce: Number(nonce ?? 0n),
     feePayerSignature: feePayerSignature
       ? {
-          r: Hex.fromNumber(feePayerSignature.r, { size: 32 }),
-          s: Hex.fromNumber(feePayerSignature.s, { size: 32 }),
+          r: feePayerSignature.r,
+          s: feePayerSignature.s,
           yParity: feePayerSignature.yParity,
         }
       : feePayerSignature,
@@ -348,8 +353,8 @@ async function serializeTempo(
     if (sig && 'type' in sig) return sig as SignatureEnvelope.SignatureEnvelope
     if (sig)
       return SignatureEnvelope.from({
-        r: BigInt(sig.r!),
-        s: BigInt(sig.s!),
+        r: sig.r!,
+        s: sig.s!,
         yParity: Number(sig.yParity!),
       })
     return undefined
@@ -358,19 +363,23 @@ async function serializeTempo(
   const {
     chainId,
     feePayer,
+    feeToken,
     accountSimulation,
     keyAuthorizationSimulation: _keyAuthorizationSimulation,
     nonce,
     owner: _owner,
     ...rest
   } = transaction
+  const from = transaction.from
+    ? TempoAddress.resolve(transaction.from)
+    : undefined
 
   const feePayerSignature = (() => {
     const feePayerSignature = transaction.feePayerSignature
     if (feePayerSignature)
       return {
-        r: BigInt(feePayerSignature.r!),
-        s: BigInt(feePayerSignature.s!),
+        r: feePayerSignature.r!,
+        s: feePayerSignature.s!,
         yParity: Number(feePayerSignature.yParity),
       }
     if (feePayerSignature === null || feePayer) return null
@@ -393,15 +402,22 @@ async function serializeTempo(
 
   const transaction_ox = {
     ...rest,
+    ...(typeof feeToken !== 'undefined'
+      ? { feeToken: TokenId.toAddress(feeToken) }
+      : {}),
+    ...(from ? { from } : {}),
     calls: rest.calls?.length
-      ? rest.calls
+      ? rest.calls.map((call) => ({
+          ...call,
+          ...(call.to ? { to: TempoAddress.resolve(call.to) } : {}),
+        }))
       : [
           {
-            to:
-              rest.to ||
-              (!rest.data || rest.data === '0x'
+            to: rest.to
+              ? TempoAddress.resolve(rest.to)
+              : !rest.data || rest.data === '0x'
                 ? '0x0000000000000000000000000000000000000000'
-                : undefined),
+                : undefined,
             value: rest.value,
             data: rest.data,
           },

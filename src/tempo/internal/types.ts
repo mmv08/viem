@@ -1,5 +1,4 @@
 import type { Address } from 'abitype'
-import type { TokenId } from 'ox/tempo'
 import type { Account } from '../../accounts/types.js'
 import type { ReadContractParameters as viem_ReadContractParameters } from '../../actions/public/readContract.js'
 import type { WriteContractSyncParameters as viem_WriteContractSyncParameters } from '../../actions/wallet/writeContractSync.js'
@@ -9,6 +8,7 @@ import type {
   MaybeRequired,
   UnionPick,
 } from '../../types/utils.js'
+import type * as TokenId from '../TokenId.js'
 import type { TransactionRequestTempo } from '../Transaction.js'
 
 /**

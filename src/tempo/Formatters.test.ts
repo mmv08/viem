@@ -306,8 +306,8 @@ describe('formatTransactionRequest', () => {
       config: initialConfig,
       signatures: [
         SignatureEnvelope.from({
-          r: 1n,
-          s: 1n,
+          r: '0x0000000000000000000000000000000000000000000000000000000000000001',
+          s: '0x0000000000000000000000000000000000000000000000000000000000000001',
           yParity: 0,
         }),
       ],

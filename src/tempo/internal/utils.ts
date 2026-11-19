@@ -1,5 +1,4 @@
 import type { Abi, AbiStateMutability, Address } from 'abitype'
-import { TokenId } from 'ox/tempo'
 import type { Account } from '../../accounts/types.js'
 import { readContract } from '../../actions/public/readContract.js'
 import type { Client } from '../../clients/createClient.js'
@@ -15,6 +14,7 @@ import type { Hex } from '../../types/misc.js'
 import { isAddressEqual } from '../../utils/address/isAddressEqual.js'
 import { encodeFunctionData } from '../../utils/index.js'
 import * as Abis from '../Abis.js'
+import * as TokenId from '../TokenId.js'
 
 /**
  * Resolves the token contract `address` and `decimals` from a `token`, which is

@@ -13,7 +13,7 @@ import {
   SignaturePreAuthorized,
 } from 'ox/tempo'
 import { privateKeyToAccount, toAccount } from 'viem/accounts'
-import { KeyAuthorizationManager } from 'viem/tempo'
+import { KeyAuthorizationManager, TokenId } from 'viem/tempo'
 import { describe, expect, test } from 'vitest'
 import * as tempo from '~test/tempo/config.js'
 import { verifyHash, verifyMessage, verifyTypedData } from '../actions/index.js'
@@ -1044,7 +1044,7 @@ describe('signVoucher', () => {
       payee: '0x2222222222222222222222222222222222222222',
       payer: account.address,
       salt: '0x0000000000000000000000000000000000000000000000000000000000000003',
-      token: 1n,
+      token: TokenId.toAddress(1n),
     })
     const channelId = Channel.computeId(channel, { chainId: voucher.chainId })
     const payload = Channel.getVoucherSignPayload({

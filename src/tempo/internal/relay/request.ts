@@ -1,5 +1,6 @@
 import type { Address } from 'abitype'
-import { Hex, RpcResponse } from 'ox'
+import * as Hex from 'ox/Hex'
+import * as RpcResponse from 'ox/RpcResponse'
 import type { Transaction as core_Transaction } from 'ox/tempo'
 import { tempo } from '../../../chains/index.js'
 import { type Client, createClient } from '../../../clients/createClient.js'

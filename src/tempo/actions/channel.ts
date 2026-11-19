@@ -1,6 +1,6 @@
 import * as Address from 'ox/Address'
 import * as Hex from 'ox/Hex'
-import { AccountConfig, Channel as ox_Channel, TokenId } from 'ox/tempo'
+import { AccountConfig, Channel as ox_Channel } from 'ox/tempo'
 import type { Account } from '../../accounts/types.js'
 import { parseAccount } from '../../accounts/utils/parseAccount.js'
 import type { ReadContractReturnType } from '../../actions/public/readContract.js'
@@ -39,6 +39,7 @@ import type {
   WriteParameters,
 } from '../internal/types.js'
 import { defineCall } from '../internal/utils.js'
+import * as TokenId from '../TokenId.js'
 import type { TransactionReceipt } from '../Transaction.js'
 import { getConfigCommitment } from './accounts.js'
 
@@ -1587,7 +1588,7 @@ async function readChannel(context: Context) {
   const { call } = context
   if (!call || !isAddressEqual(call.address, Addresses.tip20ChannelReserve))
     return undefined
-  const descriptor = call.arg<ox_Channel.Resolved>('descriptor')
+  const descriptor = call.arg<ox_Channel.Channel>('descriptor')
   if (!descriptor) return { call, descriptor }
   const [channel, gracePeriod] = await context.read([
     {

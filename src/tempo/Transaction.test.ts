@@ -4,6 +4,9 @@ import { accounts, feeToken, getClient } from '~test/tempo/config.js'
 import { prepareTransactionRequest, signTransaction } from '../actions/index.js'
 import * as Transaction from './Transaction.js'
 
+const one =
+  '0x0000000000000000000000000000000000000000000000000000000000000001' as const
+
 const client = getClient({
   account: accounts.at(0)!,
 })
@@ -145,7 +148,7 @@ describe('serialize', () => {
       },
       {
         type: 'secp256k1',
-        signature: { r: 1n, s: 1n, yParity: 0 },
+        signature: { r: one, s: one, yParity: 0 },
       },
     )
     expect(serialized.startsWith('0x76')).toBe(true)
@@ -173,7 +176,7 @@ describe('serialize', () => {
         gas: 21000n,
         nonce: 0,
       },
-      { type: 'secp256k1', signature: { r: 1n, s: 1n, yParity: 0 } },
+      { type: 'secp256k1', signature: { r: one, s: one, yParity: 0 } },
     )
     expect(serialized.startsWith('0x02')).toBe(true)
   })
@@ -191,9 +194,9 @@ describe('serialize', () => {
         },
         {
           type: 'p256',
-          signature: { r: 1n, s: 1n },
+          signature: { r: one, s: one },
           prehash: true,
-          publicKey: { prefix: 4, x: 1n, y: 1n },
+          publicKey: { prefix: 4, x: one, y: one },
         },
       ),
     ).rejects.toThrow('Unsupported signature type. Expected `secp256k1`')
@@ -216,7 +219,7 @@ describe('serialize', () => {
         feePayer: true,
         from: accounts.at(0)!.address,
       },
-      { type: 'secp256k1', signature: { r: 1n, s: 1n, yParity: 0 } },
+      { type: 'secp256k1', signature: { r: one, s: one, yParity: 0 } },
     )
     expect(serialized.startsWith('0x78')).toBe(true)
   })
@@ -270,9 +273,9 @@ describe('serialize', () => {
         feePayer: true,
         feeToken,
         from: accounts.at(0)!.address,
-        feePayerSignature: { r: '0x1', s: '0x1', yParity: 0 } as never,
+        feePayerSignature: { r: one, s: one, yParity: 0 } as never,
       },
-      { type: 'secp256k1', signature: { r: 1n, s: 1n, yParity: 0 } },
+      { type: 'secp256k1', signature: { r: one, s: one, yParity: 0 } },
     )
     expect(signed.startsWith('0x76')).toBe(true)
 
@@ -293,7 +296,7 @@ describe('serialize', () => {
         feePayer: accounts.at(1)!,
         from: accounts.at(0)!.address,
       },
-      { type: 'secp256k1', signature: { r: 1n, s: 1n, yParity: 0 } },
+      { type: 'secp256k1', signature: { r: one, s: one, yParity: 0 } },
     )
     expect(serialized.startsWith('0x76')).toBe(true)
   })
@@ -307,8 +310,8 @@ describe('serialize', () => {
       },
       {
         type: 'p256',
-        signature: { r: 1n, s: 1n },
-        publicKey: { x: 1n, y: 1n, prefix: 4 },
+        signature: { r: one, s: one },
+        publicKey: { x: one, y: one, prefix: 4 },
         prehash: true,
       },
     )

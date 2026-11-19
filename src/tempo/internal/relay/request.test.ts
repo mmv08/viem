@@ -882,9 +882,9 @@ test.each(['none', 'explicit', 'resolved'])(
     const result = (await sponsored.request(request)) as Relay.Plugin.FillResult
     expect(result.tx.nonceKey).toBe('0xff')
     expect(result.tx.feePayerSignature).toBeDefined()
-    expect(Signature.fromRpc(result.tx.feePayerSignature as never).r).not.toBe(
-      1n,
-    )
+    expect(
+      BigInt(Signature.fromRpc(result.tx.feePayerSignature as never).r),
+    ).not.toBe(1n)
   },
 )
 

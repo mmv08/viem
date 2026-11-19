@@ -33,6 +33,7 @@ import {
   P256,
   Relay,
   Store,
+  TempoAddress,
   type Transaction,
   WebCryptoP256,
   withRelay,
@@ -262,7 +263,10 @@ describe('stateless', () => {
     if (feePayerFirst.nonceKey === 'expiring')
       throw new Error('Expected prepared nonce key.')
     const transaction = TxEnvelopeTempo.from({
-      calls: feePayerFirst.calls,
+      calls: feePayerFirst.calls.map(({ to, ...call }) => ({
+        ...call,
+        ...(to ? { to: TempoAddress.resolve(to) } : {}),
+      })),
       chainId: feePayerFirst.chainId,
       feePayerSignature: null,
       feeToken,

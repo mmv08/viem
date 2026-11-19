@@ -4,7 +4,6 @@ import type { ErrorType } from '../../errors/utils.js'
 import type { SignedAuthorization } from '../../types/authorization.js'
 import type { Hex } from '../../types/misc.js'
 import type { OneOf, Prettify } from '../../types/utils.js'
-import { numberToHex } from '../encoding/toHex.js'
 import {
   type IsErc8010SignatureErrorType,
   isErc8010Signature,
@@ -57,8 +56,8 @@ export function parseErc8010Signature(
       address: authorization_ox.address,
       chainId: authorization_ox.chainId,
       nonce: Number(authorization_ox.nonce),
-      r: numberToHex(authorization_ox.r, { size: 32 }),
-      s: numberToHex(authorization_ox.s, { size: 32 }),
+      r: authorization_ox.r,
+      s: authorization_ox.s,
       yParity: authorization_ox.yParity,
     },
     ...(to ? { address: to } : {}),

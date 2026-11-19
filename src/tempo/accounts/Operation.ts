@@ -160,7 +160,7 @@ function assertHash(operation: AccountOperation.Operation) {
       ? {
           account: operation.account,
           config: operation.config,
-          transaction: operation.transaction,
+          transaction: operation.transaction as TxEnvelopeTempo.Serialized,
           type: operation.type,
           userAddress: operation.userAddress,
         }

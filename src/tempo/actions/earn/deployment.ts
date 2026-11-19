@@ -1,5 +1,5 @@
 import type { Address } from 'abitype'
-import { Hex } from 'ox'
+import * as Hex from 'ox/Hex'
 import type { Account } from '../../../accounts/types.js'
 import { parseAccount } from '../../../accounts/utils/parseAccount.js'
 import { getCode } from '../../../actions/public/getCode.js'

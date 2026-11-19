@@ -50,7 +50,11 @@ const config = AccountConfig.from({
 })
 const account = AccountConfig.getAddress(config)
 const approval = SignatureEnvelope.from({
-  signature: { r: 1n, s: 2n, yParity: 0 },
+  signature: {
+    r: '0x0000000000000000000000000000000000000000000000000000000000000001',
+    s: '0x0000000000000000000000000000000000000000000000000000000000000002',
+    yParity: 0,
+  },
   type: 'secp256k1',
 })
 const serializedApproval = SignatureEnvelope.serialize(approval)
@@ -112,7 +116,10 @@ test('behavior: resolves the chain from a key authorization', async () => {
 
 test('behavior: resolves the chain from a stored transaction operation', async () => {
   const store = Store.memory()
-  const transaction = await Transaction.serialize({ calls: [], chainId: 4217 })
+  const transaction = (await Transaction.serialize({
+    calls: [],
+    chainId: 4217,
+  })) as Transaction.TransactionSerializedTempo
   const hash = AccountOperation.getHash({
     account,
     config,

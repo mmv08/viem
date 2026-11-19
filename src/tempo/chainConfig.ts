@@ -6,7 +6,7 @@ import {
   type AccountSimulation,
   KeyAuthorization,
   SignatureEnvelope,
-  type TokenId,
+  type TxEnvelopeTempo,
 } from 'ox/tempo'
 import { getCode } from '../actions/public/getCode.js'
 import { getTransaction } from '../actions/public/getTransaction.js'
@@ -43,6 +43,7 @@ import * as Concurrent from './internal/concurrent.js'
 import * as PreAuthorized from './internal/preAuthorized.js'
 import { transactionReplacement } from './internal/replacement.js'
 import type * as KeyAuthorizationManager from './KeyAuthorizationManager.js'
+import type * as TokenId from './TokenId.js'
 import * as Transaction from './Transaction.js'
 
 /** Default distance, in seconds, of a generated expiring nonce `validBefore`. Stays under the 300-second limit to allow for clock skew. */
@@ -185,7 +186,7 @@ export const chainConfig = {
         const hash = AccountOperation.getHash({
           account: operation.account,
           config: operation.config,
-          transaction: operation.transaction,
+          transaction: operation.transaction as TxEnvelopeTempo.Serialized,
           type: 'transaction',
           userAddress: operation.userAddress,
         })

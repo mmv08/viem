@@ -1,5 +1,5 @@
 import type { Address } from 'abitype'
-import { PoolId, TokenId } from 'ox/tempo'
+import { PoolId } from 'ox/tempo'
 import type { Account } from '../../accounts/types.js'
 import type { MulticallParameters } from '../../actions/public/multicall.js'
 import { multicall } from '../../actions/public/multicall.js'
@@ -32,6 +32,7 @@ import {
 } from '../internal/errors.js'
 import type { ReadParameters, WriteParameters } from '../internal/types.js'
 import { defineCall } from '../internal/utils.js'
+import * as TokenId from '../TokenId.js'
 import type { TransactionReceipt as TempoTransactionReceipt } from '../Transaction.js'
 
 /**
@@ -117,7 +118,12 @@ export namespace getPool {
       defineCall({
         address: Addresses.feeManager,
         abi: Abis.feeAmm,
-        args: [PoolId.from({ userToken, validatorToken })],
+        args: [
+          PoolId.from({
+            userToken: TokenId.toAddress(userToken),
+            validatorToken: TokenId.toAddress(validatorToken),
+          }),
+        ],
         functionName: 'totalSupply',
       }),
     ] as const
@@ -206,8 +212,8 @@ export namespace getLiquidityBalance {
       if ('poolId' in args && args.poolId) return args.poolId!
       if ('userToken' in args && 'validatorToken' in args)
         return PoolId.from({
-          userToken: args.userToken,
-          validatorToken: args.validatorToken,
+          userToken: TokenId.toAddress(args.userToken),
+          validatorToken: TokenId.toAddress(args.validatorToken),
         })
       throw new Error(
         '`poolId`, or `userToken` and `validatorToken` must be provided.',

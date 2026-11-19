@@ -3,7 +3,7 @@ import * as Bytes from 'ox/Bytes'
 import * as Hex from 'ox/Hex'
 import * as PublicKey from 'ox/PublicKey'
 import * as Secp256k1 from 'ox/Secp256k1'
-import { TokenId, ZoneId, ZoneRpcAuthentication } from 'ox/tempo'
+import { ZoneId, ZoneRpcAuthentication } from 'ox/tempo'
 import type { Account } from '../../accounts/types.js'
 import { parseAccount } from '../../accounts/utils/parseAccount.js'
 import {
@@ -69,6 +69,7 @@ import {
 } from '../internal/utils.js'
 import * as WithdrawalSenderTag from '../internal/WithdrawalSenderTag.js'
 import * as Store from '../Store.js'
+import * as TokenId from '../TokenId.js'
 import type { TransactionReceipt } from '../Transaction.js'
 
 const defaultWithdrawalGas = 10_000_000n
@@ -377,7 +378,7 @@ export async function getEncryptionKey<chain extends Chain | undefined>(
       ? new Error('No sequencer encryption key configured.')
       : publicKeyResult.error
   const [x, prefix] = publicKeyResult.result
-  PublicKey.assert({ prefix, x: Hex.toBigInt(x) }, { compressed: true })
+  PublicKey.assert({ prefix, x }, { compressed: true })
   return {
     keyIndex: keyCount - 1n,
     publicKey: { prefix: prefix as 2 | 3, x },
@@ -2052,7 +2053,7 @@ async function encryptDepositPayload(
 ): Promise<EncryptedPayload> {
   const sequencerPublicKey = PublicKey.from({
     prefix: publicKey.prefix,
-    x: Hex.toBigInt(publicKey.x),
+    x: publicKey.x,
   })
 
   const { privateKey: ephemeralPrivateKey, publicKey: ephemeralPublicKey } =
@@ -2080,7 +2081,7 @@ async function encryptDepositPayload(
       info: buildDepositHkdfInfo(
         portalAddress,
         keyIndex,
-        Hex.fromNumber(compressedEphemeral.x, { size: 32 }),
+        compressedEphemeral.x,
         sender,
       ) as BufferSource,
     },
@@ -2106,7 +2107,7 @@ async function encryptDepositPayload(
 
   return {
     ciphertext: Hex.fromBytes(ciphertext),
-    ephemeralPubkeyX: Hex.fromNumber(compressedEphemeral.x, { size: 32 }),
+    ephemeralPubkeyX: compressedEphemeral.x,
     ephemeralPubkeyYParity: compressedEphemeral.prefix,
     nonce: Hex.fromBytes(nonce),
     tag: Hex.fromBytes(tag),

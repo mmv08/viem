@@ -1,5 +1,4 @@
 import type { Address } from 'abitype'
-import { TokenId } from 'ox/tempo'
 import type {
   MulticallParameters,
   MulticallReturnType,
@@ -8,6 +7,7 @@ import type { Client } from '../../clients/createClient.js'
 import { formatUnits } from '../../utils/unit/formatUnits.js'
 import type * as ExecutionError from '../ExecutionError.js'
 import type { TempoExecutionError } from '../errors.js'
+import * as TokenId from '../TokenId.js'
 
 /** Action-specific steps to resolve errors, keyed by error name. Listed before the default steps. */
 export type Hints = {

@@ -1,6 +1,6 @@
 import { setTimeout } from 'node:timers/promises'
 import { Hex } from 'ox'
-import { TokenId, TokenRole } from 'ox/tempo'
+import { TokenRole } from 'ox/tempo'
 import {
   type EIP1193Parameters,
   type EIP1193RequestOptions,
@@ -10,7 +10,7 @@ import {
   parseUnits,
 } from 'viem'
 import { getCode, writeContractSync } from 'viem/actions'
-import { Abis, Addresses, Selectors, TokenIds } from 'viem/tempo'
+import { Abis, Addresses, Selectors, TokenId, TokenIds } from 'viem/tempo'
 import { describe, expect, test, vi } from 'vitest'
 import {
   accounts,

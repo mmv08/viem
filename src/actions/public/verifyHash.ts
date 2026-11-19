@@ -46,7 +46,6 @@ import {
   type BytesToHexErrorType,
   bytesToHex,
   type NumberToHexErrorType,
-  numberToHex,
 } from '../../utils/encoding/toHex.js'
 import {
   type RecoverAddressErrorType,
@@ -252,8 +251,8 @@ export async function verifyErc8010(
     address: authorization_ox.address,
     chainId: Number(authorization_ox.chainId),
     nonce: Number(authorization_ox.nonce),
-    r: numberToHex(authorization_ox.r, { size: 32 }),
-    s: numberToHex(authorization_ox.s, { size: 32 }),
+    r: authorization_ox.r,
+    s: authorization_ox.s,
     yParity: authorization_ox.yParity,
   } as const
 

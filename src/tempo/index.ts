@@ -1,13 +1,13 @@
 // biome-ignore lint/performance/noBarrelFile: entrypoint module
-export { Bytes, PublicKey, Secp256k1 } from 'ox'
+export * as Bytes from 'ox/Bytes'
+export * as PublicKey from 'ox/PublicKey'
+export * as Secp256k1 from 'ox/Secp256k1'
 // Export types required for inference.
 export type {
   /** @deprecated */
   KeyAuthorization as z_KeyAuthorization,
   /** @deprecated */
   SignatureEnvelope as z_SignatureEnvelope,
-  /** @deprecated */
-  TokenId as z_TokenId,
   /** @deprecated */
   TxEnvelopeTempo as z_TxEnvelopeTempo,
 } from 'ox/tempo'
@@ -18,9 +18,7 @@ export {
   EarnShares,
   Period,
   ReceivePolicyReceipt,
-  TempoAddress,
   Tick,
-  TokenId,
   VirtualAddress,
   VirtualMaster,
 } from 'ox/tempo'
@@ -98,6 +96,12 @@ export * as Scopes from './Scopes.js'
 /** @experimental */
 export * as Selectors from './Selectors.js'
 export * as Store from './Store.js'
+export * as TempoAddress from './TempoAddress.js'
+export type {
+  /** @deprecated */
+  TokenId as z_TokenId,
+} from './TokenId.js'
+export * as TokenId from './TokenId.js'
 export * as TokenIds from './TokenIds.js'
 // Export types required for inference.
 export type {

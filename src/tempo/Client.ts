@@ -1,6 +1,4 @@
 import type { Address } from 'abitype'
-import type { TokenId } from 'ox/tempo'
-
 import type { JsonRpcAccount } from '../accounts/types.js'
 import {
   type Client as Client_,
@@ -25,6 +23,7 @@ import type { RpcSchema } from '../types/eip1193.js'
 import type { Prettify } from '../types/utils.js'
 import { tempo, tempoTestnet } from './Chain.js'
 import { type Decorator, decorator as tempoActions } from './Decorator.js'
+import type * as TokenId from './TokenId.js'
 
 /**
  * Configuration for a Tempo {@link Client}.

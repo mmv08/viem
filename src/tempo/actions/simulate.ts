@@ -197,7 +197,7 @@ export async function simulateBlocks<
 
           const data = call.error?.data ?? call.returnData
           const gasUsed = BigInt(call.gasUsed)
-          const logs = call.logs?.map((log) => formatLog(log))
+          const logs = call.logs?.map((log) => formatLog(log as never))
           const status = call.status === '0x1' ? 'success' : 'failure'
 
           const result =

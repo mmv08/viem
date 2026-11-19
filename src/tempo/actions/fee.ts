@@ -1,5 +1,4 @@
 import type { Address } from 'abitype'
-import { TokenId } from 'ox/tempo'
 import type { Account } from '../../accounts/types.js'
 import { parseAccount } from '../../accounts/utils/parseAccount.js'
 import { readContract } from '../../actions/public/readContract.js'
@@ -39,6 +38,7 @@ import type {
   WriteParameters,
 } from '../internal/types.js'
 import { defineCall } from '../internal/utils.js'
+import * as TokenId from '../TokenId.js'
 import type { TransactionReceipt } from '../Transaction.js'
 import * as tokenActions from './token.js'
 

@@ -16,6 +16,8 @@ import { formatTransaction as viem_formatTransaction } from '../utils/formatters
 import { formatTransactionReceipt as viem_formatTransactionReceipt } from '../utils/formatters/transactionReceipt.js'
 import { formatTransactionRequest as viem_formatTransactionRequest } from '../utils/formatters/transactionRequest.js'
 import type { Account, ConfigurableAccount } from './Account.js'
+import * as TempoAddress from './TempoAddress.js'
+import * as TokenId from './TokenId.js'
 import {
   isTempo,
   type Transaction,
@@ -59,8 +61,8 @@ export function formatTransaction(
     ...(typeof blockTimestamp !== 'undefined' && { blockTimestamp }),
     feePayerSignature: feePayerSignature
       ? {
-          r: Hex.fromNumber(feePayerSignature.r, { size: 32 }),
-          s: Hex.fromNumber(feePayerSignature.s, { size: 32 }),
+          r: feePayerSignature.r,
+          s: feePayerSignature.s,
           v: BigInt(feePayerSignature.v ?? 27),
           yParity: feePayerSignature.yParity,
         }
@@ -164,6 +166,20 @@ export function formatTransactionRequest(
 
   const rpc = ox_TransactionRequest.toRpc({
     ...rpcRequest,
+    ...(rpcRequest.calls
+      ? {
+          calls: rpcRequest.calls.map((call) => ({
+            ...call,
+            ...(call.to ? { to: TempoAddress.resolve(call.to) } : {}),
+          })),
+        }
+      : {}),
+    ...(typeof rpcRequest.feeToken !== 'undefined'
+      ? { feeToken: TokenId.toAddress(rpcRequest.feeToken) }
+      : {}),
+    ...(typeof rpcRequest.from === 'string'
+      ? { from: TempoAddress.resolve(rpcRequest.from) }
+      : {}),
     type: 'tempo',
   } as never)
 

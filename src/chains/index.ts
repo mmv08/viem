@@ -818,14 +818,6 @@ export type {
 } from 'ox/tempo/SignatureEnvelope'
 export type {
   /** @deprecated */
-  Address as TempoAddress,
-} from 'ox/tempo/TempoAddress'
-export type {
-  /** @deprecated */
-  TokenIdOrAddress,
-} from 'ox/tempo/TokenId'
-export type {
-  /** @deprecated */
   Call as TxEnvelopeTempoCall,
 } from 'ox/tempo/TxEnvelopeTempo'
 export type {
@@ -885,6 +877,14 @@ export type {
   TransactionSerializableDeposit,
   TransactionSerializedDeposit,
 } from '../op-stack/types/transaction.js'
+export type {
+  /** @deprecated */
+  Address as TempoAddress,
+} from '../tempo/TempoAddress.js'
+export type {
+  /** @deprecated */
+  TokenIdOrAddress,
+} from '../tempo/TokenId.js'
 export type {
   /** @deprecated */
   Transaction as z_Transaction,

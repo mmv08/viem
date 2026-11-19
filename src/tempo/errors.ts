@@ -1,5 +1,5 @@
 import type { AbiError, Address } from 'abitype'
-import type { Hex } from 'ox'
+import type * as Hex from 'ox/Hex'
 import { BaseError } from '../errors/base.js'
 import { prettyPrint } from '../errors/transaction.js'
 import type * as accessKey from './actions/accessKey.js'
